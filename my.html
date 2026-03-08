@@ -1,1 +1,276 @@
-<h1>My Name is Pratik</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RAG Simulator</title>
+
+<style>
+
+body{
+font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
+background:#0f172a;
+color:white;
+margin:0;
+padding:40px;
+}
+
+h1{
+text-align:center;
+margin-bottom:30px;
+}
+
+.container{
+max-width:1200px;
+margin:auto;
+}
+
+.card{
+background:#1e293b;
+padding:20px;
+border-radius:12px;
+margin-bottom:20px;
+box-shadow:0 5px 20px rgba(0,0,0,0.3);
+}
+
+textarea,input{
+width:100%;
+padding:10px;
+margin-top:10px;
+border-radius:6px;
+border:none;
+font-size:14px;
+}
+
+button{
+margin-top:10px;
+padding:10px 18px;
+border:none;
+background:#3b82f6;
+color:white;
+border-radius:6px;
+cursor:pointer;
+font-weight:600;
+}
+
+button:hover{
+background:#2563eb;
+}
+
+.step{
+margin-top:10px;
+padding:10px;
+background:#334155;
+border-radius:6px;
+font-size:14px;
+}
+
+.chunk{
+background:#475569;
+padding:8px;
+margin:6px 0;
+border-radius:6px;
+}
+
+.result{
+background:#16a34a;
+padding:12px;
+border-radius:8px;
+margin-top:10px;
+}
+
+.small{
+font-size:12px;
+opacity:0.8;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>RAG Simulator</h1>
+
+<div class="card">
+
+<h3>1. Knowledge Base</h3>
+
+<textarea id="kb" rows="5">
+Our product warranty lasts 2 years from purchase.
+
+Customers can return items within 30 days for a refund.
+
+Shipping usually takes 3-5 business days.
+
+Customer support is available 24/7 via chat and email.
+</textarea>
+
+<button onclick="chunkDocs()">Create Chunks</button>
+
+<div id="chunks"></div>
+
+</div>
+
+
+<div class="card">
+
+<h3>2. Embeddings (Simulated)</h3>
+
+<button onclick="createEmbeddings()">Generate Embeddings</button>
+
+<div id="embeddings"></div>
+
+</div>
+
+
+<div class="card">
+
+<h3>3. Vector Database</h3>
+
+<button onclick="storeVectors()">Store in Vector DB</button>
+
+<div id="vectordb"></div>
+
+</div>
+
+
+<div class="card">
+
+<h3>4. Ask a Question</h3>
+
+<input id="question" placeholder="Example: What is the warranty period?" />
+
+<button onclick="runQuery()">Run RAG</button>
+
+<div id="queryEmbedding"></div>
+
+<div id="retrieval"></div>
+
+<div id="prompt"></div>
+
+<div id="answer"></div>
+
+</div>
+
+</div>
+
+<script>
+
+let chunks=[]
+let embeddings=[]
+let vectordb=[]
+
+function chunkDocs(){
+
+let text=document.getElementById("kb").value
+
+chunks=text.split("\n").filter(x=>x.trim()!="")
+
+let html="<div class='step'>Document Chunks:</div>"
+
+chunks.forEach(c=>{
+html+=`<div class='chunk'>${c}</div>`
+})
+
+document.getElementById("chunks").innerHTML=html
+
+}
+
+function fakeEmbedding(text){
+
+let words=text.toLowerCase().split(/\W+/)
+
+let vector={}
+
+words.forEach(w=>{
+if(!vector[w]) vector[w]=0
+vector[w]++
+})
+
+return vector
+
+}
+
+function createEmbeddings(){
+
+embeddings=chunks.map(c=>fakeEmbedding(c))
+
+let html="<div class='step'>Embeddings Created (word frequency vectors)</div>"
+
+embeddings.forEach((e,i)=>{
+html+=`<div class='chunk'>Chunk ${i+1}: ${JSON.stringify(e)}</div>`
+})
+
+document.getElementById("embeddings").innerHTML=html
+
+}
+
+function storeVectors(){
+
+vectordb=embeddings.map((e,i)=>({vector:e,text:chunks[i]}))
+
+document.getElementById("vectordb").innerHTML=
+"<div class='step'>Stored "+vectordb.length+" vectors in the Vector Database</div>"
+
+}
+
+function similarity(a,b){
+
+let score=0
+
+for(let word in a){
+if(b[word]){
+score+=Math.min(a[word],b[word])
+}
+}
+
+return score
+
+}
+
+function runQuery(){
+
+let q=document.getElementById("question").value
+
+let qEmbed=fakeEmbedding(q)
+
+document.getElementById("queryEmbedding").innerHTML=
+"<div class='step'>Query Embedding: "+JSON.stringify(qEmbed)+"</div>"
+
+let scored=vectordb.map(v=>({
+text:v.text,
+score:similarity(qEmbed,v.vector)
+}))
+
+scored.sort((a,b)=>b.score-a.score)
+
+let top=scored.slice(0,2)
+
+let html="<div class='step'>Retrieved Chunks (Similarity Search)</div>"
+
+top.forEach(r=>{
+html+=`<div class='chunk'>Score ${r.score} : ${r.text}</div>`
+})
+
+document.getElementById("retrieval").innerHTML=html
+
+let context=top.map(t=>t.text).join("\n")
+
+let prompt=
+"Context:\n"+context+"\n\nQuestion:\n"+q+"\n\nAnswer based on the context."
+
+document.getElementById("prompt").innerHTML=
+"<div class='step'><b>Prompt Sent to LLM</b><pre>"+prompt+"</pre></div>"
+
+let answer=top[0].text
+
+document.getElementById("answer").innerHTML=
+"<div class='result'><b>Simulated LLM Answer:</b><br>"+answer+"</div>"
+
+}
+
+</script>
+
+</body>
+</html>
